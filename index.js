@@ -2,6 +2,7 @@ require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const express = require("express");
 const cors = require("cors");
+const req = require("express/lib/request");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -22,7 +23,7 @@ const client = new MongoClient(uri, {
 });
 
 client.connect().then(() => {
-  console.log(" Connected to MongoDB!");
+
 
   const visaCollection = client.db("visaDB").collection("visa");
   const userCollection = client.db("visaDB").collection("users");
@@ -55,11 +56,14 @@ client.connect().then(() => {
 
   //my add visa
 
-  app.get("/my-added-visas", async (req, res) => {
-    const userEmail = req.params.email;
-    const filter = { email };
-    const visa = await applicationCollection.find(filter).toArray();
-    req.send(visa);
+  app.get("/my-applications/:email", async (req, res) => {
+    const email = req.params.email;
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
+    const applications = await visaCollection.find({ email }).toArray();
+    res.json(applications);
   });
 
   app.delete("/add-visa/:id", async (req, res) => {
@@ -113,24 +117,21 @@ client.connect().then(() => {
     res.send(result);
   });
 
-
-
   //user get info
 
   app.get("/users", async (req, res) => {
-const cursor=userCollection.find()
-const result=await cursor.toArray()
-res.send(result)
-  
-});
+    const cursor = userCollection.find();
+    const result = await cursor.toArray();
+    res.send(result);
+  });
 
-app.post('/users',async (req,res)=>{
-  const newUser=req.body;
-  const result=await userCollection.insertOne(newUser)
-  res.send(result)
-})
+  app.post("/users", async (req, res) => {
+    const newUser = req.body;
+    const result = await userCollection.insertOne(newUser);
+    res.send(result);
+  });
 
-//ends
+  //ends
 
   // POST: Add a new user related
   app.post("/users", async (req, res) => {
@@ -139,42 +140,38 @@ app.post('/users',async (req,res)=>{
   });
 
 
-  //application start 
 
-
-  app.get('/visa-applications', (req, res) => {
-    const userId = req.query.userId;
-    if (!userId) {
-      return res.status(400).json({ message: 'User ID is required' });
-    }
-    // Simulate database call
-    getVisaApplications(userId)
-      .then(applications => {
-        if (!applications) {
-          return res.status(404).json({ message: 'No visa applications found for this user' });
-        }
-        res.json(applications);
-      })
-      .catch(err => {
-        console.error(err);
-        res.status(500).json({ message: 'Server error, please try again later' });
-      });
-  });
+  //application start
   
 
+  app.get("/my-applications/:email", async (req, res) => {
+    const email = req.params.email;
+    const query = { email };
+    const cursor = applicationCollection.find(query);
+    const result = await cursor.toArray();
+    res.send(result)
+  });
 
+  //post
+
+
+
+  app.post('/my-applications',async(req,res)=>{
+    const application=req.body;
+    const result=await applicationCollection.insertOne(application)
+    res.send(result)
+  })
 
 
   // DELETE: Cancel an application
- 
 
+  app.delete("/my-applications/:id", async (req, res) => {
+    const id = req.params.id;
+    const query = { _id: new ObjectId(id) };
+    const result = await applicationCollection.deleteOne(query);
+    res.send(result);
+  });
 
- 
-  
-
-  //end
-
-  // Root Route
   app.get("/", (req, res) => res.send(" Visa Navigator Server is running!"));
 });
 
